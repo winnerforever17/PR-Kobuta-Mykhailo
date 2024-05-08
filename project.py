@@ -1,3 +1,5 @@
+import json
+
 class User:
     def __init__(self, username, email, age):
         self.username = username
@@ -12,20 +14,10 @@ class User:
     def set_goal(self, goal):
         self.goals.append(goal)
 
-    def get_activity_statistics(self):
-        total_distance = sum(activity.distance for activity in self.activities)
-        total_calories = sum(activity.calories for activity in self.activities)
-        return {
-            "загальна відстань": total_distance,
-            "всього калорій": total_calories,
-            "Діяльності": len(self.activities)
-        }
-
-    def validate_unique_email(self, email):
-        return email != self.email
-
-    def validate_unique_username(self, username):
-        return username != self.username
+    @staticmethod
+    def validate_user_data(username, email):
+        # Перевірка унікальності email або username
+        return True  # Поки що просто повертаємо True
 
 
 class Activity:
@@ -35,9 +27,10 @@ class Activity:
         self.distance = distance
         self.calories = calories
 
-    def validate_activity(self):
-        allowed_activities = ["біг", "ходьба", "фізичні вправи"]
-        return self.activity_type.lower() in allowed_activities
+    @staticmethod
+    def validate_activity(activity_type):
+        allowed_activities = ["run", "walk", "exercise"]
+        return activity_type.lower() in allowed_activities
 
 
 class Goal:
@@ -51,23 +44,125 @@ class ProgressTracker:
         self.user = user
 
     def track_progress(self):
-        progress = {}
-        for goal in self.user.goals:
-            if goal.goal_type == "щоденні кроки":
-                steps_taken = 5000
-                if steps_taken >= goal.target:
-                    progress[goal.goal_type] = "Мета досягнута"
-                else:
-                    progress[goal.goal_type] = f"{goal.target - steps_taken} залишилося кроків"
-        return progress
+        # Реалізація відстеження прогресу користувача
+        pass
 
 
-user1 = User("Джон", "john@example.com", 30)
-activity1 = Activity("Біг", 30, 5, 200)
-user1.add_activity(activity1)
-goal1 = Goal("Щодені кроки", 7000)
-user1.set_goal(goal1)
+def save_user_data(users):
+    with open("users.json", "w") as f:
+        json.dump(users, f, default=lambda o: o.__dict__, indent=4)
 
-tracker = ProgressTracker(user1)
-print(tracker.track_progress())
-print(user1.get_activity_statistics())
+def load_user_data():
+    try:
+        with open("users.json", "r") as f:
+            users_data = json.load(f)
+            users = [User(**user_data) for user_data in users_data]
+            return users
+    except FileNotFoundError:
+        return []
+
+def register_user(users):
+    username = input("Введіть ім'я користувача: ")
+    email = input("Введіть електронну пошту: ")
+    age = int(input("Введіть вік: "))
+
+    if User.validate_user_data(username, email):
+        user = User(username, email, age)
+        users.append(user)
+        save_user_data(users)
+        return user
+    else:
+        print("Дані користувача недійсні.")
+        return None
+
+def create_activity(user):
+    print("Оберіть тип активності:")
+    print("1. Біг")
+    print("2. Прогулянка")
+    print("3. Вправи")
+    activity_type_choice = input("Введіть ваш вибір: ")
+
+    if activity_type_choice == "1":
+        activity_type = "run"
+    elif activity_type_choice == "2":
+        activity_type = "walk"
+    elif activity_type_choice == "3":
+        activity_type = "exercise"
+    else:
+        print("Недійсний вибір.")
+        return
+
+    duration = float(input("Введіть тривалість (у хвилинах): "))
+    if activity_type != "exercise":
+        distance = float(input("Введіть відстань (у кілометрах): "))
+    else:
+        distance = 0
+    calories = float(input("Введіть кількість спалених калорій: "))
+
+    if Activity.validate_activity(activity_type):
+        activity = Activity(activity_type, duration, distance, calories)
+        user.add_activity(activity)
+        save_user_data(users)
+    else:
+        print("Недійсний тип активності.")
+
+def set_goal(user):
+    print("Оберіть тип цілі:")
+    print("1. Щоденна кількість кроків")
+    print("2. Кількість хвилин тренувань")
+    print("3. Пройдена відстань")
+    goal_type_choice = input("Введіть ваш вибір: ")
+
+    if goal_type_choice == "1":
+        goal_type = "Щоденна кількість кроків"
+    elif goal_type_choice == "2":
+        goal_type = "Кількість хвилин тренувань"
+    elif goal_type_choice == "3":
+        goal_type = "Пройдена відстань"
+    else:
+        print("Недійсний вибір.")
+        return
+
+    target = float(input("Введіть ціль: "))
+
+    goal = Goal(goal_type, target)
+    user.set_goal(goal)
+    save_user_data(users)
+
+def main_menu():
+    print("1. Зареєструвати нового користувача")
+    print("2. Додати активність")
+    print("3. Встановити ціль")
+    print("4. Відстежити прогрес")
+    print("5. Вийти")
+
+users = load_user_data()
+
+if __name__ == "__main__":
+    while True:
+        main_menu()
+        choice = input("Введіть ваш вибір: ")
+
+        if choice == "1":
+            user = register_user(users)
+        elif choice == "2":
+            if users:
+                create_activity(user)
+            else:
+                print("Будь ласка, спочатку зареєструйтесь.")
+        elif choice == "3":
+            if users:
+                set_goal(user)
+            else:
+                print("Будь ласка, спочатку зареєструйтесь.")
+        elif choice == "4":
+            if users:
+                tracker = ProgressTracker(user)
+                tracker.track_progress()
+            else:
+                print("Будь ласка, спочатку зареєструйтесь.")
+        elif choice == "5":
+            print("Вихід з програми...")
+            break
+        else:
+            print("Недійсний вибір. Будь ласка, спробуйте знову.")
